@@ -1,7 +1,7 @@
 import { h } from './dom';
 
 /** 閉じるボタン付きのダイアログ。背景のクリックか Esc でも閉じる */
-export function showDialog(title: string, body: HTMLElement): void {
+export function showDialog(title: string, body: HTMLElement): () => void {
   const close = () => {
     overlay.remove();
     document.removeEventListener('keydown', onKey);
@@ -25,4 +25,5 @@ export function showDialog(title: string, body: HTMLElement): void {
   document.addEventListener('keydown', onKey);
   document.body.append(overlay);
   closeBtn.focus();
+  return close;
 }

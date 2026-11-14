@@ -1,5 +1,6 @@
 import './styles/base.css';
 import './styles/screen1.css';
+import './styles/screen2.css';
 import './styles/print.css';
 import { store } from './store';
 import { loadAutosave } from './storage/storage';
