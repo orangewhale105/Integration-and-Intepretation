@@ -1,0 +1,193 @@
+:root {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --text: #1f2328;
+  --muted: #5f6670;
+  --line: #d0d5dc;
+  --accent: #1f6feb;
+  --accent-soft: #e3edfd;
+  --danger: #cf222e;
+  --danger-soft: #ffebe9;
+  --warn-bg: #fff4d6;
+  --ok: #1a7f37;
+  --send-w: 190px;
+  --splitter-w: 10px;
+  --header-h: 46px;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  font-size: 14px;
+  overscroll-behavior: none;
+}
+
+#app { height: 100%; display: flex; flex-direction: column; }
+
+/* iPad Safari は 16px 未満の入力欄で自動拡大するため、入力欄は 16px にする */
+input, textarea, select, button { font: inherit; font-size: 16px; color: inherit; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  min-height: 34px;
+}
+.btn:hover { background: var(--accent-soft); }
+
+/* ---- ヘッダー ---- */
+.app-header {
+  height: var(--header-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.app-title { font-weight: 700; white-space: nowrap; }
+.case-name-wrap { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.case-name-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.case-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 360px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+.unsaved-mark {
+  font-size: 12px;
+  color: #7d4e00;
+  background: var(--warn-bg);
+  border-radius: 10px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.unsaved-mark[hidden] { display: none; }
+.header-actions { display: flex; gap: 6px; }
+
+/* ---- 左右分割 ---- */
+.split {
+  --split: 50%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns:
+    clamp(var(--send-w), calc(var(--split) - var(--splitter-w) / 2), calc(100% - var(--splitter-w)))
+    var(--splitter-w)
+    minmax(0, 1fr);
+}
+.pane { min-width: 0; min-height: 0; overflow: hidden; }
+.pane-left { display: grid; grid-template-columns: minmax(0, 1fr) var(--send-w); }
+.pane-right { overflow: auto; background: var(--panel); }
+.pane-title { font-size: 15px; margin: 0; padding: 10px 12px 6px; }
+
+.splitter {
+  cursor: col-resize;
+  background: var(--line);
+  position: relative;
+}
+.splitter::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 4px;
+  height: 40px;
+  margin-top: -20px;
+  border-radius: 2px;
+  background: #8c959f;
+}
+.splitter:hover, .splitter.active, .splitter:focus-visible { background: var(--accent); outline: none; }
+
+
+/* ---- 共通部品 ---- */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  min-width: 180px;
+}
+.context-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.context-menu button:hover { background: var(--accent-soft); }
+.context-menu button.danger { color: var(--danger); }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 1100;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  background: #24292f;
+  color: #fff;
+}
+.toast-warn { background: var(--danger); }
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.dialog {
+  background: var(--panel);
+  border-radius: 10px;
+  width: min(560px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.dialog-title { font-size: 16px; margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.dialog-body { padding: 12px 16px; overflow: auto; }
+.dialog-actions { padding: 10px 16px; border-top: 1px solid var(--line); text-align: right; }
+
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1200;
+  pointer-events: none;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  padding: 4px 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }

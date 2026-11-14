@@ -1,0 +1,101 @@
+/* ---- 画面2 ---- */
+.screen2 { padding-bottom: 24px; min-width: 0; }
+.screen2-note { margin: 0; padding: 0 12px 8px; font-size: 12px; color: var(--muted); }
+.screen2-note strong { color: var(--text); }
+
+.icidh-diagram { position: relative; margin: 0 12px; }
+.icidh-columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  column-gap: 36px;
+  align-items: stretch;
+}
+.icidh-col {
+  background: #f6f8fa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+.icidh-col[data-stage='disease'] { background: #f3f0fa; }
+.icidh-col.drop-over { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.col-title {
+  font-size: 13px;
+  margin: 0;
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+}
+.col-body { flex: 1 1 auto; padding: 8px; display: flex; flex-direction: column; gap: 10px; }
+
+.node {
+  position: relative;
+  background: var(--panel);
+  border: 1.5px solid #8c959f;
+  border-radius: 6px;
+  padding: 6px 18px 6px 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.icidh-card {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.icidh-card.incomplete { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.node-num { flex: none; font-weight: 700; color: var(--accent); font-size: 13px; }
+.node-label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.disease-box { padding: 4px 18px 4px 6px; }
+.disease-box.blank { border-style: dashed; padding-right: 6px; }
+.disease-input { padding: 3px 5px; }
+
+.connector {
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px var(--accent);
+  cursor: crosshair;
+  z-index: 2;
+}
+.connector::before { content: ''; position: absolute; inset: -10px; }
+
+.drop-line { height: 3px; border-radius: 2px; background: var(--accent); margin: -6px 0; }
+
+.arrow-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 1;
+}
+.arrow-head { fill: #57606a; }
+.arrow-line { fill: none; stroke: #57606a; stroke-width: 2; }
+.arrow-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+.arrow:hover .arrow-line { stroke: var(--accent); stroke-width: 3; }
+.arrow-temp { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }
+body.is-linking, body.is-linking * { cursor: crosshair !important; user-select: none; -webkit-user-select: none; }
+
+.problem-list { margin: 16px 12px 0; }
+.list-title { font-size: 14px; margin: 0 0 6px; }
+.problems { list-style: none; margin: 0; padding: 0; }
+.problems li { padding: 5px 8px; border-bottom: 1px solid var(--line); }
+.problem-heading { font-weight: 600; }
+.problem-note { font-size: 13px; color: var(--muted); padding-left: 1.2em; }
+.disease-item { color: var(--muted); }
+
+.link-dialog { display: flex; flex-direction: column; gap: 6px; }
+.link-note { resize: vertical; min-height: 4.5em; }
+.link-dialog-delete { margin-top: 8px; }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: var(--danger-soft); }
+.placeholder { color: var(--muted); }

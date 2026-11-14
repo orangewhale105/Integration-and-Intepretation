@@ -1,0 +1,51 @@
+/* A4 横で印刷する。画面の表示は隠し、印刷用の表示だけを出す */
+#print-root { display: none; }
+
+@page { size: A4 landscape; margin: 10mm; }
+
+@media print {
+  html, body { height: auto; background: #fff; font-size: 10.5pt; }
+  #app { display: none !important; }
+  .toast, .context-menu, .dialog-overlay { display: none !important; }
+  #print-root { display: block; }
+
+  .p-page { break-after: page; }
+  .p-page:last-child { break-after: auto; }
+  .p-title { font-size: 13pt; margin: 0 0 4mm; }
+  .p-category { font-size: 11pt; margin: 3mm 0 2mm; break-after: avoid; }
+  .p-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; align-items: start; }
+  /* カードの途中で改ページしない */
+  .p-card { break-inside: avoid; border: 0.3mm solid #555; border-radius: 1.5mm; padding: 2mm; }
+  .p-label { font-weight: 700; font-size: 11pt; margin-bottom: 1mm; }
+  .p-fields { width: 100%; border-collapse: collapse; }
+  .p-fields th { width: 4em; white-space: nowrap; text-align: left; vertical-align: top; font-weight: normal; color: #444; padding: 0.5mm 1mm 0.5mm 0; }
+  .p-fields td { vertical-align: top; padding: 0.5mm 0; }
+  .p-rows { width: 100%; border-collapse: collapse; }
+  .p-rows td { border-bottom: 0.2mm solid #bbb; padding: 0.3mm 0; }
+  .p-ref { color: #444; padding-left: 2mm !important; }
+}
+
+/* 画面2の図は、配置を測ってから矢印を引くため、画面上でも同じ寸法で組む */
+#print-root.measuring {
+  display: block;
+  position: fixed;
+  left: -20000px;
+  top: 0;
+  visibility: hidden;
+}
+#print-root .p-page-icidh { width: 1040px; font-size: 13px; }
+#print-root .p-icidh-frame { overflow: hidden; }
+#print-root .p-icidh { position: relative; width: 1040px; }
+#print-root .p-icidh-cols { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 40px; }
+#print-root .p-col { border: 1px solid #888; border-radius: 6px; min-height: 120px; }
+#print-root .p-col-title { text-align: center; font-weight: 700; padding: 4px; border-bottom: 1px solid #888; }
+#print-root .p-col-body { padding: 8px; display: flex; flex-direction: column; gap: 10px; }
+#print-root .p-node { border: 1px solid #333; border-radius: 4px; padding: 4px 6px; background: #fff; }
+#print-root .arrow-layer { position: absolute; left: 0; top: 0; overflow: visible; }
+#print-root .arrow-line { fill: none; stroke: #333; stroke-width: 1.5; }
+#print-root .arrow-head { fill: #333; }
+#print-root .p-problems { margin-top: 12px; }
+#print-root .p-problem { break-inside: avoid; padding: 3px 0; border-bottom: 1px solid #ccc; }
+#print-root .p-problem-heading { font-weight: 700; }
+#print-root .p-problem-note { padding-left: 1.2em; }
+#print-root .p-disease { color: #444; }
