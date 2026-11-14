@@ -42,6 +42,7 @@ export function createScreen1(): HTMLElement {
 
   function newView(card: Card | null, category: SourceCategory): CardView {
     const view = new CardView(card, category, hooks);
+    if (card) view.setSent(store.data.sent.includes(card.id));
     views.set(view.el, view);
     return view;
   }
@@ -80,7 +81,9 @@ export function createScreen1(): HTMLElement {
   }
 
   store.subscribe((kind) => {
-    if (kind === 'replace') render();
+    if (kind === 'replace') return render();
+    const sent = new Set(store.data.sent);
+    for (const view of views.values()) if (!view.blank) view.setSent(sent.has(view.card.id));
   });
   render();
   return root;

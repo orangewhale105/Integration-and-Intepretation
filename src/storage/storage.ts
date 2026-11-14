@@ -9,6 +9,8 @@ import { CaseParseError, parseCase } from './parse';
 const DB_NAME = 'integration-and-interpretation';
 const STORE = 'kv';
 const KEY_CURRENT = 'currentCase';
+/** ページを閉じる直前の控え（IndexedDB の書き込みが間に合わない場合に備える） */
+const KEY_BACKUP = 'integration-and-interpretation/backup';
 
 export interface SavedState {
   data: CaseData;
@@ -40,23 +42,65 @@ async function withStore<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) =>
   }
 }
 
-/** 端末内に自動保存したケースを読み込む。なければ null */
-export async function loadAutosave(): Promise<SavedState | null> {
-  const raw = await withStore<unknown>('readonly', (s) => s.get(KEY_CURRENT));
+type Stored = { data: unknown; dirty: boolean; savedAt: number };
+
+function toSaved(raw: unknown): (SavedState & { savedAt: number }) | null {
   if (!raw || typeof raw !== 'object') return null;
-  const saved = raw as { data?: unknown; dirty?: unknown };
+  const saved = raw as { data?: unknown; dirty?: unknown; savedAt?: unknown };
   try {
-    return { data: parseCase(saved.data), dirty: saved.dirty === true };
+    return {
+      data: parseCase(saved.data),
+      dirty: saved.dirty === true,
+      savedAt: typeof saved.savedAt === 'number' ? saved.savedAt : 0,
+    };
   } catch {
     return null;
   }
 }
 
+/** 端末内に自動保存したケースを読み込む。IndexedDB と控えのうち新しい方を使う。なければ null */
+export async function loadAutosave(): Promise<SavedState | null> {
+  let fromDb: ReturnType<typeof toSaved> = null;
+  try {
+    fromDb = toSaved(await withStore<unknown>('readonly', (s) => s.get(KEY_CURRENT)));
+  } catch (e) {
+    console.error('IndexedDB を読み込めませんでした', e);
+  }
+  let backup: ReturnType<typeof toSaved> = null;
+  try {
+    const text = localStorage.getItem(KEY_BACKUP);
+    backup = text ? toSaved(JSON.parse(text)) : null;
+  } catch {
+    backup = null;
+  }
+  const best = !backup ? fromDb : !fromDb || backup.savedAt > fromDb.savedAt ? backup : fromDb;
+  return best ? { data: best.data, dirty: best.dirty } : null;
+}
+
 /** 端末内に自動保存する */
 export async function saveAutosave(state: SavedState): Promise<void> {
   // structuredClone で保存時点の内容を固定する
-  const value = { data: structuredClone(state.data), dirty: state.dirty };
+  const value: Stored = { data: structuredClone(state.data), dirty: state.dirty, savedAt: Date.now() };
   await withStore('readwrite', (s) => s.put(value, KEY_CURRENT));
+  try {
+    localStorage.removeItem(KEY_BACKUP);
+  } catch {
+    /* 控えを消せなくても、新しい方が読まれるため問題ない */
+  }
+}
+
+/**
+ * ページを閉じる直前に呼ぶ。IndexedDB の書き込みは完了を待てないため、
+ * 同期的に書ける localStorage に控えを残す。
+ */
+export function saveBackupNow(state: SavedState): void {
+  const value: Stored = { data: state.data, dirty: state.dirty, savedAt: Date.now() };
+  try {
+    localStorage.setItem(KEY_BACKUP, JSON.stringify(value));
+  } catch (e) {
+    console.error('控えを保存できませんでした', e);
+  }
+  saveAutosave(state).catch(() => {});
 }
 
 /** ファイル名に使えない文字を置き換える */

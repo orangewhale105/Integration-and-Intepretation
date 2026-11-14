@@ -27,6 +27,19 @@
 }
 .card.incomplete { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
 .card.blank { border-style: dashed; background: #fafbfc; }
+.card.sent { background: #f1f6fe; border-left: 6px solid var(--accent); }
+.sent-mark {
+  flex: none;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 10px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+.sent-mark[hidden] { display: none; }
 .card.blank .card-handle { visibility: hidden; }
 
 .card-head { display: flex; align-items: flex-end; gap: 6px; }

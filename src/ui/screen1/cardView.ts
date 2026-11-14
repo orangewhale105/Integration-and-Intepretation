@@ -23,6 +23,7 @@ export class CardView {
   blank: boolean;
   private rowsBody: HTMLElement;
   private warnIcon: HTMLElement;
+  private sentMark: HTMLElement;
   private categorySelect: HTMLSelectElement;
 
   constructor(card: Card | null, category: SourceCategory, private hooks: CardViewHooks) {
@@ -50,6 +51,8 @@ export class CardView {
     );
 
     this.warnIcon = h('span', { class: 'warn-icon', role: 'img', 'aria-label': '入力不備' }, '!');
+    this.sentMark = h('span', { class: 'sent-mark', title: 'このカードは画面2へ送ってあります' }, '送付済み');
+    this.sentMark.hidden = true;
 
     const name = this.textInput(`${uid}-name`, c.name, (v) => (this.card.name = v), '例：ROM');
     const criterion = this.textArea(`${uid}-crit`, c.criterion, (v) => (this.card.criterion = v), '例：参考可動域を下回れば可動域制限');
@@ -70,7 +73,7 @@ export class CardView {
     this.el = h(
       'article',
       { class: 'card' },
-      h('div', { class: 'card-head' }, handle, this.field('情報源の区分', this.categorySelect), this.warnIcon),
+      h('div', { class: 'card-head' }, handle, this.field('情報源の区分', this.categorySelect), this.sentMark, this.warnIcon),
       this.field('検査名（情報の名称）', name),
       this.field('基準（判定規則）', criterion),
       this.field('出典', source),
@@ -87,6 +90,12 @@ export class CardView {
     this.el.classList.toggle('incomplete', missing.length > 0);
     this.warnIcon.hidden = missing.length === 0;
     this.warnIcon.title = missing.length ? `未入力：${missing.join('、')}` : '';
+  }
+
+  /** 画面2へ送ったカードであることを表示する（カードは画面1に残る） */
+  setSent(sent: boolean): void {
+    this.el.classList.toggle('sent', sent);
+    this.sentMark.hidden = !sent;
   }
 
   focusCategory(): void {

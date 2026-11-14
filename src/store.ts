@@ -1,6 +1,6 @@
 import { createEmptyCase } from './model/caseData';
 import type { CaseData } from './model/types';
-import { saveAutosave } from './storage/storage';
+import { saveAutosave, saveBackupNow } from './storage/storage';
 
 /** edit: 入力による変更 / replace: ケースの入れ替え（画面を作り直す） */
 export type ChangeKind = 'edit' | 'replace';
@@ -55,7 +55,7 @@ class Store {
     if (!this.saveTimer) return;
     clearTimeout(this.saveTimer);
     this.saveTimer = null;
-    saveAutosave({ data: this.data, dirty: this.dirty }).catch(() => {});
+    saveBackupNow({ data: this.data, dirty: this.dirty });
   }
 }
 
