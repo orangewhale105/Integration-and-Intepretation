@@ -1,0 +1,26 @@
+/* A4 横で印刷する。画面の表示は隠し、印刷用の表示だけを出す */
+#print-root { display: none; }
+
+@page { size: A4 landscape; margin: 10mm; }
+
+@media print {
+  html, body { height: auto; background: #fff; font-size: 10.5pt; }
+  #app { display: none !important; }
+  .toast, .context-menu, .dialog-overlay { display: none !important; }
+  #print-root { display: block; }
+
+  .p-page { break-after: page; }
+  .p-page:last-child { break-after: auto; }
+  .p-title { font-size: 13pt; margin: 0 0 4mm; }
+  .p-category { font-size: 11pt; margin: 3mm 0 2mm; break-after: avoid; }
+  .p-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; align-items: start; }
+  /* カードの途中で改ページしない */
+  .p-card { break-inside: avoid; border: 0.3mm solid #555; border-radius: 1.5mm; padding: 2mm; }
+  .p-label { font-weight: 700; font-size: 11pt; margin-bottom: 1mm; }
+  .p-fields { width: 100%; border-collapse: collapse; }
+  .p-fields th { width: 4em; white-space: nowrap; text-align: left; vertical-align: top; font-weight: normal; color: #444; padding: 0.5mm 1mm 0.5mm 0; }
+  .p-fields td { vertical-align: top; padding: 0.5mm 0; }
+  .p-rows { width: 100%; border-collapse: collapse; }
+  .p-rows td { border-bottom: 0.2mm solid #bbb; padding: 0.3mm 0; }
+  .p-ref { color: #444; padding-left: 2mm !important; }
+}
