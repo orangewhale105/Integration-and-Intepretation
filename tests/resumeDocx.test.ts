@@ -16,7 +16,7 @@ describe('レジュメの Word 出力', () => {
     exam.rows = [{ id: 'r2', result: '右大腿四頭筋 3', reference: '5' }];
     exam.label = '大腿四頭筋の筋出力低下';
     data.cards.push(general, exam);
-    data.diagnoses.push({ id: 'd1', name: '頚部脊柱管狭窄症' });
+    data.cards.push({ ...createCard('medical', 'diagnosis'), id: 'd1', name: '頚部脊柱管狭窄症' });
     placeDisease(data, 'd1', 0);
     placeCard(data, exam.id, 'impairment', 0);
 

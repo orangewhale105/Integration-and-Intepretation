@@ -23,8 +23,10 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
   if (req.mode === 'navigate') {
+    // ブラウザの HTTP キャッシュ（GitHub Pages は10分）に古いページが残っていても、
+    // 公開し直した最新版を取りにいく
     event.respondWith(
-      fetch(req)
+      fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put('./index.html', copy));

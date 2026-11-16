@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCard, createEmptyCase } from '../src/model/caseData';
 import { addLink, linkBlockReason, numbering, placeCard, placeDisease, problemList, removeDiseaseFromIcidh } from '../src/model/icidh';
-import { deleteDiagnosis } from '../src/model/caseData';
+import { deleteCard } from '../src/model/caseData';
 import type { CaseData } from '../src/model/types';
 
 function setup() {
@@ -19,7 +19,7 @@ function setup() {
     gait: mk('歩行能力低下'),
     job: mk('復職困難'),
   };
-  data.diagnoses.push({ id: 'd1', name: '頚部脊柱管狭窄症' }, { id: 'd2', name: '2型糖尿病' });
+  data.cards.push({ ...createCard('medical', 'diagnosis'), id: 'd1', name: '頚部脊柱管狭窄症' }, { ...createCard('medical', 'diagnosis'), id: 'd2', name: '2型糖尿病' });
   placeDisease(data, 'd1', 9);
   placeDisease(data, 'd2', 9);
   placeCard(data, ids.sensA, 'impairment', 9);
@@ -75,6 +75,17 @@ describe('配置', () => {
     expect(data.icidh.columns.impairment).toEqual([ids.sensA, ids.sensB, ids.quad]);
   });
 
+  it('情報・診断名のカードは問題点の列に置けない。問題点のカードは疾患の列に置けない', () => {
+    const { data, ids } = setup();
+    const info = createCard('general', 'info');
+    data.cards.push(info);
+    placeCard(data, info.id, 'handicap', 0);
+    placeCard(data, 'd1', 'handicap', 0);
+    placeDisease(data, ids.quad, 0);
+    expect(data.icidh.columns.handicap).toEqual([ids.job]);
+    expect(data.icidh.diseases).toEqual(['d1', 'd2']);
+  });
+
   it('画面1にないカードは置けない', () => {
     const { data } = setup();
     placeCard(data, 'missing', 'impairment', 0);
@@ -93,12 +104,12 @@ describe('配置', () => {
     addLink(data, { kind: 'disease', id: 'd1' }, ids.quad);
     removeDiseaseFromIcidh(data, 'd1');
     expect(data.icidh.links).toEqual([]);
-    expect(data.diagnoses.map((d) => d.id)).toContain('d1');
+    expect(data.cards.map((c) => c.id)).toContain('d1');
   });
 
   it('診断名を削除すると、画面2からも外れる', () => {
     const { data } = setup();
-    deleteDiagnosis(data, 'd1');
+    deleteCard(data, 'd1');
     expect(data.icidh.diseases).toEqual(['d2']);
   });
 });

@@ -14,7 +14,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx';
-import { findDiagnosis } from '../model/caseData';
+import { diagnosisCards, findDiagnosis } from '../model/caseData';
 import { problemList } from '../model/icidh';
 import type { Card, CaseData, IcidhStage } from '../model/types';
 
@@ -69,6 +69,8 @@ function resultTable(card: Card): Table {
 /** 判定基準・出典・問題点のラベル */
 function judgement(card: Card): Paragraph[] {
   const out: Paragraph[] = [];
+  // 情報のカードには判定基準・問題点のラベルがない（種類を変える前に書いた分も載せない）
+  if (card.kind !== 'problem') return out;
   if (card.criterion.trim()) out.push(line(`判定基準：${card.criterion.trim()}`, { indent: true }));
   if (card.source.trim()) out.push(line(`出典：${card.source.trim()}`, { indent: true }));
   if (card.label.trim()) out.push(line(`→ ${card.label.trim()}`, { indent: true, bold: true }));
@@ -106,13 +108,13 @@ const LEVELS: Array<{ stage: IcidhStage; label: string }> = [
 
 export function buildResumeDocument(data: CaseData): Document {
   const children: Array<Paragraph | Table> = [];
-  const cardsOf = (cat: Card['category']) => data.cards.filter((c) => c.category === cat);
+  const cardsOf = (cat: Card['category']) => data.cards.filter((c) => c.category === cat && c.kind !== 'diagnosis');
 
   children.push(heading('Ⅱ．一般情報'));
   cardsOf('general').forEach((c) => children.push(...infoCard(c)));
 
   children.push(heading('Ⅲ．医学的情報'));
-  const diagnoses = data.diagnoses.map((d) => d.name.trim()).filter((s) => s !== '');
+  const diagnoses = diagnosisCards(data).map((d) => d.name.trim()).filter((s) => s !== '');
   if (diagnoses.length) children.push(line(`診断名：${diagnoses.join('、')}`));
   cardsOf('medical').forEach((c) => children.push(...infoCard(c)));
 

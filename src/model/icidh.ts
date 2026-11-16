@@ -6,6 +6,13 @@ import type { CaseData, IcidhStage, Link, NodeRef } from './types';
 
 export type NodeStage = 'disease' | IcidhStage;
 
+/** 問題点リストの段階の並び（レジュメと同じく社会的不利を上に） */
+export const LIST_ORDER: ReadonlyArray<{ id: IcidhStage; label: string }> = [
+  { id: 'handicap', label: '社会的不利' },
+  { id: 'disability', label: '能力障害' },
+  { id: 'impairment', label: '機能障害' },
+];
+
 const NEXT: Record<NodeStage, IcidhStage | null> = {
   disease: 'impairment',
   impairment: 'disability',
@@ -54,7 +61,7 @@ export function linkBlockReason(data: CaseData, from: NodeRef, toCardId: string)
 export function addLink(data: CaseData, from: NodeRef, toCardId: string): Link | string {
   const reason = linkBlockReason(data, from, toCardId);
   if (reason) return reason;
-  const link: Link = { id: newId(), from, toCardId, note: '' };
+  const link: Link = { id: newId(), from, toCardId, note: '', notePos: null };
   data.icidh.links.push(link);
   return link;
 }
@@ -71,7 +78,7 @@ function isLinkValid(data: CaseData, l: Link): boolean {
  * 置ける条件（検査結果と問題点のラベル）は、画面1から置くときに呼び出し側で判定する。
  */
 export function placeCard(data: CaseData, cardId: string, stage: IcidhStage, index: number): number {
-  if (!findCard(data, cardId)) return 0;
+  if (findCard(data, cardId)?.kind !== 'problem') return 0;
   const cols = data.icidh.columns;
   const prevStage = stageOfCard(data, cardId);
   let at = index;

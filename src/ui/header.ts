@@ -63,8 +63,8 @@ export function createHeader(): HTMLElement {
         store.markClean();
         sync();
       }, 'ケース名をファイル名として書き出す'),
-      btn('印刷', () => printCase(store.data), '単一検査結果の解釈と統合と解釈の図を A4 横で印刷する（PDF 保存もできます）'),
-      btn('Word出力', () => {
+      btn('印刷', () => printCase(store.data), '単一検査の解釈と統合と解釈の図を A4 横で印刷する（PDF 保存もできます）'),
+      btn('レジュメ作成', () => {
         exportResumeFile(store.data).catch((e) => {
           console.error(e);
           showToast('Word ファイルを作れませんでした。', 'warn');

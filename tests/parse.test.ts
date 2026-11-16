@@ -10,7 +10,8 @@ describe('ケースファイルの読み込み', () => {
     card.label = '歩行時痛';
     card.rows = [{ id: 'r1', result: '「歩くと膝が痛い」（本人）', reference: '' }];
     data.cards.push(card);
-    data.diagnoses.push({ id: 'd1', name: '変形性膝関節症' });
+    data.cards.push({ ...createCard('medical', 'diagnosis'), id: 'd1', name: '変形性膝関節症' });
+    data.icidh.links.push({ id: 'l', from: { kind: 'disease', id: 'd1' }, toCardId: card.id, note: '説明', notePos: { dx: 10, dy: -4 } });
     data.icidh.diseases.push('d1');
     data.icidh.columns.disability.push(card.id);
     expect(parseCase(JSON.parse(serializeCase(data)))).toEqual(data);
@@ -27,7 +28,7 @@ describe('ケースファイルの読み込み', () => {
     data.icidh.diseases.push('missing');
     data.icidh.columns.impairment.push(card.id, 'missing');
     data.icidh.columns.disability.push(card.id);
-    data.icidh.links.push({ id: 'l', from: { kind: 'disease', id: 'none' }, toCardId: card.id, note: '' });
+    data.icidh.links.push({ id: 'l', from: { kind: 'disease', id: 'none' }, toCardId: card.id, note: '', notePos: null });
 
     const parsed = parseCase(JSON.parse(serializeCase(data)));
     expect(parsed.icidh.diseases).toEqual([]);
@@ -57,10 +58,27 @@ describe('第1版のファイル', () => {
       },
     };
     const data = parseCase(raw);
-    expect(data.cards.map((c) => c.category)).toEqual(['exam', 'general', 'general', 'otherDept']);
-    expect(data.diagnoses).toEqual([{ id: 'd1', name: '脳梗塞' }]);
+    expect(data.cards.slice(1).map((c) => c.category)).toEqual(['exam', 'general', 'general', 'otherDept']);
+    expect(data.cards[0]).toMatchObject({ id: 'd1', category: 'medical', kind: 'diagnosis', name: '脳梗塞' });
+    expect(data.cards.slice(1).every((c) => c.kind === 'problem')).toBe(true);
     expect(data.icidh.diseases).toEqual(['d1']);
     expect(data.icidh.links).toHaveLength(1);
+  });
+});
+
+describe('第2版のファイル', () => {
+  it('診断名のリストを医学的情報の診断名のカードにし、置いてあったものだけ疾患の列に残す', () => {
+    const raw = {
+      format: 'integration-and-interpretation/case',
+      version: 2,
+      caseName: '旧2',
+      cards: [{ id: 'a', category: 'general', name: '主訴', criterion: '', source: '', rows: [], label: '' }],
+      diagnoses: [{ id: 'd1', name: '脳梗塞' }, { id: 'd2', name: '高血圧' }],
+      icidh: { diseases: ['d2'], columns: { impairment: [], disability: [], handicap: [] }, links: [] },
+    };
+    const data = parseCase(raw);
+    expect(data.cards.map((c) => [c.id, c.kind])).toEqual([['d1', 'diagnosis'], ['d2', 'diagnosis'], ['a', 'problem']]);
+    expect(data.icidh.diseases).toEqual(['d2']);
   });
 });
 
