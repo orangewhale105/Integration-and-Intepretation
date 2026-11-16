@@ -5,8 +5,8 @@ import { h } from '../common/dom';
 
 const orEmpty = (s: string) => (s.trim() === '' ? h('span', { class: 'empty' }, '（未入力）') : s);
 
-/** カードの全情報を表示する（統合と解釈の画面から参照する） */
-export function showCardDetail(card: Card): void {
+/** カードの全情報（統合と解釈の画面から参照する） */
+export function cardDetailBody(card: Card): HTMLElement {
   const rows = card.rows.filter((r) => r.result.trim() !== '' || r.reference.trim() !== '');
   const showRef = rows.some((r) => r.reference.trim() !== '');
   const missing = missingFields(card);
@@ -37,5 +37,10 @@ export function showCardDetail(card: Card): void {
       h('dt', {}, '問題点のラベル'), h('dd', { class: 'detail-label' }, orEmpty(card.label)),
     ),
   );
-  showDialog('カードの内容', body);
+  return body;
+}
+
+/** カードの全情報をダイアログで表示する */
+export function showCardDetail(card: Card): void {
+  showDialog('カードの内容', cardDetailBody(card));
 }

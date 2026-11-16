@@ -13,6 +13,7 @@
   .p-page:last-child { break-after: auto; }
   .p-title { font-size: 13pt; margin: 0 0 4mm; }
   .p-category { font-size: 11pt; margin: 3mm 0 2mm; break-after: avoid; }
+  .p-level { font-size: 10pt; font-weight: 700; margin: 2mm 0 0.5mm; break-after: avoid; }
   .p-diagnoses { font-size: 9.5pt; margin: 0 0 2mm; break-after: avoid; }
   .p-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; align-items: start; }
   /* カードの途中で改ページしない */

@@ -1,8 +1,8 @@
 // A4 横の印刷。画面とは別に印刷用の表示を作り、ブラウザの印刷機能で出力する。
 // カードの途中で改ページしない。文字を読めないほど縮小しない。
-import { findCard, findDiagnosis } from '../model/caseData';
-import { numbering, problemList } from '../model/icidh';
-import { CATEGORIES, STAGES, type Card, type CaseData, type Disease } from '../model/types';
+import { diagnosisCards, findCard, findDiagnosis } from '../model/caseData';
+import { LIST_ORDER, numbering, problemList } from '../model/icidh';
+import { CATEGORIES, STAGES, type Card, type CaseData } from '../model/types';
 import { h } from '../ui/common/dom';
 import { anchorPoints, createArrowLayer, curve, svg } from '../ui/screen2/arrows';
 
@@ -12,6 +12,14 @@ const PAGE_H = 710;
 
 function cardBlock(card: Card): HTMLElement {
   const rows = card.rows.filter((r) => r.result.trim() !== '' || r.reference.trim() !== '');
+  if (card.kind === 'info') {
+    return h(
+      'div',
+      { class: 'p-card p-info' },
+      h('div', { class: 'p-label' }, card.name || '（項目名なし）'),
+      h('table', { class: 'p-rows' }, ...rows.map((r) => h('tr', {}, h('td', {}, r.result)))),
+    );
+  }
   const showRef = rows.some((r) => r.reference.trim() !== '');
   return h(
     'div',
@@ -42,10 +50,10 @@ function cardBlock(card: Card): HTMLElement {
 }
 
 export function buildScreen1Print(data: CaseData): HTMLElement {
-  const page = h('section', { class: 'p-page' }, h('h1', { class: 'p-title' }, `単一検査結果の解釈　${data.caseName}`));
-  const diagnoses = data.diagnoses.filter((d) => d.name.trim() !== '');
+  const page = h('section', { class: 'p-page' }, h('h1', { class: 'p-title' }, `単一検査の解釈　${data.caseName}`));
+  const diagnoses = diagnosisCards(data).filter((d) => d.name.trim() !== '');
   for (const cat of CATEGORIES) {
-    const cards = data.cards.filter((c) => c.category === cat.id);
+    const cards = data.cards.filter((c) => c.category === cat.id && c.kind !== 'diagnosis');
     const dx = cat.id === 'medical' && diagnoses.length > 0 ? h('div', { class: 'p-diagnoses' }, `診断名：${diagnoses.map((d) => d.name.trim()).join('、')}`) : null;
     if (cards.length === 0 && !dx) continue;
     page.append(h('h2', { class: 'p-category' }, cat.label), dx ?? '', h('div', { class: 'p-cards' }, ...cards.map(cardBlock)));
@@ -58,7 +66,7 @@ const PRINT_MARKER = 'print-arrow-head';
 /** 統合と解釈の印刷：ICIDH の図（分割せず1ページに収める）と問題点リスト */
 function buildScreen2Print(data: CaseData): { page: HTMLElement; finish: () => void } {
   const nums = numbering(data);
-  const diseases = data.icidh.diseases.map((id) => findDiagnosis(data, id)).filter((d): d is Disease => !!d);
+  const diseases = data.icidh.diseases.map((id) => findDiagnosis(data, id)).filter((d): d is Card => !!d);
   const col = (title: string, nodes: HTMLElement[]) =>
     h('div', { class: 'p-col' }, h('div', { class: 'p-col-title' }, title), h('div', { class: 'p-col-body' }, ...nodes));
   const diseaseCol = col(
@@ -84,9 +92,18 @@ function buildScreen2Print(data: CaseData): { page: HTMLElement; finish: () => v
     'div',
     { class: 'p-problems' },
     h('h2', { class: 'p-category' }, '問題点リスト'),
-    ...items.map((it) =>
-      h('div', { class: 'p-problem' }, h('div', { class: 'p-problem-heading' }, it.heading), ...it.notes.map((n) => h('div', { class: 'p-problem-note' }, n))),
-    ),
+    // 画面と同じく段階ごとに分ける
+    ...LIST_ORDER.flatMap((stage) => {
+      const group = items.filter((it) => it.stage === stage.id);
+      if (group.length === 0) return [];
+      return [
+        h('div', { class: 'p-level' }, stage.label),
+        ...group.map((it) =>
+          h('div', { class: 'p-problem' }, h('div', { class: 'p-problem-heading' }, it.heading), ...it.notes.map((n) => h('div', { class: 'p-problem-note' }, n))),
+        ),
+      ];
+    }),
+    ...(diseases.length ? [h('div', { class: 'p-level' }, '疾患')] : []),
     ...diseases.map((d) => h('div', { class: 'p-problem p-disease' }, `D${nums.disease.get(d.id)} ${d.name}`)),
   );
   const title = h('h1', { class: 'p-title' }, `統合と解釈（ICIDH）　${data.caseName}`);
