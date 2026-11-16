@@ -7,9 +7,9 @@ export function createSplitter(container: HTMLElement): HTMLElement {
     class: 'splitter',
     role: 'separator',
     'aria-orientation': 'vertical',
-    'aria-label': '画面1と画面2の境界',
+    'aria-label': '単一検査結果の解釈と統合と解釈の境界',
     tabindex: 0,
-    title: 'ドラッグして画面1と画面2の幅を変える',
+    title: 'ドラッグして左右の画面の幅を変える',
   });
   bar.style.touchAction = 'none';
 

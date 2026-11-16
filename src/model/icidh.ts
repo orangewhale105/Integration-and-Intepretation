@@ -1,6 +1,6 @@
 // ICIDH（画面2）のルールと、問題点リストの組み立て。
-// 引ける矢印は「疾患・変調 → 機能障害」「機能障害 → 能力障害」「能力障害 → 社会的不利」の3種類のみ。
-import { findCard, removeFromIcidh } from './caseData';
+// 引ける矢印は「疾患 → 機能障害」「機能障害 → 能力障害」「能力障害 → 社会的不利」の3種類のみ。
+import { findCard, findDiagnosis, removeDiseaseFromIcidh, removeFromIcidh } from './caseData';
 import { newId } from './id';
 import type { CaseData, IcidhStage, Link, NodeRef } from './types';
 
@@ -14,7 +14,7 @@ const NEXT: Record<NodeStage, IcidhStage | null> = {
 };
 
 const STAGE_NAME: Record<NodeStage, string> = {
-  disease: '疾患・変調',
+  disease: '疾患',
   impairment: '機能障害',
   disability: '能力障害',
   handicap: '社会的不利',
@@ -29,7 +29,7 @@ export function stageOfCard(data: CaseData, cardId: string): IcidhStage | null {
 }
 
 export function stageOfNode(data: CaseData, ref: NodeRef): NodeStage | null {
-  if (ref.kind === 'disease') return data.icidh.diseases.some((d) => d.id === ref.id) ? 'disease' : null;
+  if (ref.kind === 'disease') return data.icidh.diseases.includes(ref.id) ? 'disease' : null;
   return stageOfCard(data, ref.id);
 }
 
@@ -39,7 +39,7 @@ const sameRef = (a: NodeRef, b: NodeRef) => a.kind === b.kind && a.id === b.id;
 export function linkBlockReason(data: CaseData, from: NodeRef, toCardId: string): string | null {
   const fromStage = stageOfNode(data, from);
   const toStage = stageOfCard(data, toCardId);
-  if (!fromStage || !toStage) return '画面2に置いたカードどうしでのみ矢印を引けます。';
+  if (!fromStage || !toStage) return '統合と解釈の画面に置いたものどうしでのみ矢印を引けます。';
   if (from.kind === 'card' && from.id === toCardId) return '同じカードには矢印を引けません。';
   const expected = NEXT[fromStage];
   if (expected !== toStage) {
@@ -68,9 +68,10 @@ function isLinkValid(data: CaseData, l: Link): boolean {
 /**
  * カードを画面2の段階 stage の index 番目に置く。1枚のカードは1か所にしか置けないため、
  * すでに置いてあれば移動になる。移動によってルールに合わなくなった矢印は消し、その数を返す。
+ * 置ける条件（検査結果と問題点のラベル）は、画面1から置くときに呼び出し側で判定する。
  */
 export function placeCard(data: CaseData, cardId: string, stage: IcidhStage, index: number): number {
-  if (!findCard(data, cardId) || !data.sent.includes(cardId)) return 0;
+  if (!findCard(data, cardId)) return 0;
   const cols = data.icidh.columns;
   const prevStage = stageOfCard(data, cardId);
   let at = index;
@@ -86,12 +87,20 @@ export function placeCard(data: CaseData, cardId: string, stage: IcidhStage, ind
   return before - data.icidh.links.length;
 }
 
-export function deleteDisease(data: CaseData, diseaseId: string): void {
-  data.icidh.diseases = data.icidh.diseases.filter((d) => d.id !== diseaseId);
-  data.icidh.links = data.icidh.links.filter((l) => !(l.from.kind === 'disease' && l.from.id === diseaseId));
+/** 診断名を「疾患」の列の index 番目に置く。すでに置いてあれば並べ替えになる */
+export function placeDisease(data: CaseData, diseaseId: string, index: number): void {
+  if (!findDiagnosis(data, diseaseId)) return;
+  const col = data.icidh.diseases;
+  let at = index;
+  const prev = col.indexOf(diseaseId);
+  if (prev !== -1) {
+    col.splice(prev, 1);
+    if (prev < at) at -= 1;
+  }
+  col.splice(Math.max(0, Math.min(at, col.length)), 0, diseaseId);
 }
 
-export { removeFromIcidh };
+export { removeDiseaseFromIcidh, removeFromIcidh };
 
 export interface Numbering {
   /** カード ID → 問題点の#番号 */
@@ -101,12 +110,12 @@ export interface Numbering {
 }
 
 /**
- * 番号を振る。疾患・変調は上から D1、D2…。
+ * 番号を振る。疾患は上から D1、D2…。
  * 問題点は機能障害から #1 として、能力障害、社会的不利の順に、列の上から振る。
  */
 export function numbering(data: CaseData): Numbering {
   const disease = new Map<string, number>();
-  data.icidh.diseases.forEach((d, i) => disease.set(d.id, i + 1));
+  data.icidh.diseases.forEach((id, i) => disease.set(id, i + 1));
   const card = new Map<string, number>();
   let n = 1;
   for (const stage of ['impairment', 'disability', 'handicap'] as IcidhStage[]) {

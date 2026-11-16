@@ -1,5 +1,6 @@
 // 画面1のカード1枚分の表示と入力。
 // 「空のカード」は区分ごとの末尾に常に1枚置き、書き始めると新しいカードになる。
+// カードは入力欄以外のどこをつかんでもドラッグでき、統合と解釈の画面へ直接置ける。
 import { createCard, createRow } from '../../model/caseData';
 import { CATEGORIES, type Card, type ResultRow, type SourceCategory } from '../../model/types';
 import { missingFields } from '../../model/validation';
@@ -23,7 +24,7 @@ export class CardView {
   blank: boolean;
   private rowsBody: HTMLElement;
   private warnIcon: HTMLElement;
-  private sentMark: HTMLElement;
+  private placedMark: HTMLElement;
   private categorySelect: HTMLSelectElement;
 
   constructor(card: Card | null, category: SourceCategory, private hooks: CardViewHooks) {
@@ -43,16 +44,11 @@ export class CardView {
       this.changed();
     });
 
-    const handle = h('div', { class: 'card-handle', title: 'ドラッグして「画面2へ送る」欄へ置く', 'aria-label': 'つかんで移動' }, '⠿');
-    makeDraggable(
-      handle,
-      () => (this.blank ? null : { kind: 'card', cardId: this.card.id, origin: 'screen1' }),
-      () => this.card.label,
-    );
+    const handle = h('div', { class: 'card-handle', 'aria-hidden': 'true' }, '⠿');
 
     this.warnIcon = h('span', { class: 'warn-icon', role: 'img', 'aria-label': '入力不備' }, '!');
-    this.sentMark = h('span', { class: 'sent-mark', title: 'このカードは画面2へ送ってあります' }, '送付済み');
-    this.sentMark.hidden = true;
+    this.placedMark = h('span', { class: 'placed-mark', title: 'このカードは統合と解釈の画面に置いてあります' }, '配置済み');
+    this.placedMark.hidden = true;
 
     const name = this.textInput(`${uid}-name`, c.name, (v) => (this.card.name = v), '例：ROM');
     const criterion = this.textArea(`${uid}-crit`, c.criterion, (v) => (this.card.criterion = v), '例：参考可動域を下回れば可動域制限');
@@ -73,12 +69,18 @@ export class CardView {
     this.el = h(
       'article',
       { class: 'card' },
-      h('div', { class: 'card-head' }, handle, this.field('情報源の区分', this.categorySelect), this.sentMark, this.warnIcon),
-      this.field('検査名（情報の名称）', name),
-      this.field('基準（判定規則）', criterion),
+      h('div', { class: 'card-head' }, handle, this.field('情報源の区分', this.categorySelect), this.placedMark, this.warnIcon),
+      this.field('検査名', name),
+      h('div', { class: 'field' }, h('span', { class: 'field-label' }, '検査結果'), rowsTable),
+      this.field('判定基準', criterion),
       this.field('出典', source),
-      h('div', { class: 'field' }, rowsTable),
-      this.field('問題点ラベル', label),
+      this.field('問題点のラベル', label),
+    );
+    makeDraggable(
+      this.el,
+      () => (this.blank ? null : { kind: 'card', cardId: this.card.id, origin: 'screen1' }),
+      () => this.card.label,
+      { wholeArea: true },
     );
     this.refresh();
   }
@@ -92,10 +94,10 @@ export class CardView {
     this.warnIcon.title = missing.length ? `未入力：${missing.join('、')}` : '';
   }
 
-  /** 画面2へ送ったカードであることを表示する（カードは画面1に残る） */
-  setSent(sent: boolean): void {
-    this.el.classList.toggle('sent', sent);
-    this.sentMark.hidden = !sent;
+  /** 統合と解釈の画面に置いたカードであることを表示する（カードは画面1に残る） */
+  setPlaced(placed: boolean): void {
+    this.el.classList.toggle('placed', placed);
+    this.placedMark.hidden = !placed;
   }
 
   focusCategory(): void {
@@ -141,12 +143,17 @@ export class CardView {
     return el;
   }
 
-  /** 結果の1行。末尾の空の行に書き始めると新しい行になる */
+  /**
+   * 検査結果の1行。表計算ソフトのように、末尾の空の行に書き始めると新しい行になる。
+   * Enter で下の行へ（Shift+Enter で上の行へ）、↑↓ キーで上下の行へ移る。
+   */
   private rowEl(row: ResultRow | null, isBlank: boolean): HTMLTableRowElement {
     let r = row ?? createRow();
     let blank = isBlank;
-    const result = h('input', { type: 'text', class: 'field-input', 'aria-label': '結果', placeholder: blank ? '結果を入力' : '' }) as HTMLInputElement;
-    const ref = h('input', { type: 'text', class: 'field-input', 'aria-label': '基準値' }) as HTMLInputElement;
+    const result = h('input', { type: 'text', class: 'field-input', 'aria-label': '結果', 'data-col': 0, placeholder: blank ? '結果を入力' : '' }) as HTMLInputElement;
+    const ref = h('input', { type: 'text', class: 'field-input', 'aria-label': '基準値', 'data-col': 1 }) as HTMLInputElement;
+    result.addEventListener('keydown', (e) => this.moveInRows(e, tr, 0));
+    ref.addEventListener('keydown', (e) => this.moveInRows(e, tr, 1));
     result.value = r.result;
     ref.value = r.reference;
     const tr = h('tr', { class: blank ? 'row-blank' : '' }, h('td', {}, result), h('td', { class: 'ref-col' }, ref));
@@ -178,5 +185,21 @@ export class CardView {
       }
     });
     return tr;
+  }
+
+  private moveInRows(e: KeyboardEvent, tr: HTMLTableRowElement, col: number): void {
+    // 日本語入力の変換中の Enter は確定に使うため、移動しない
+    if (e.isComposing || e.keyCode === 229) return;
+    let step = 0;
+    if (e.key === 'Enter') step = e.shiftKey ? -1 : 1;
+    else if (e.key === 'ArrowDown') step = 1;
+    else if (e.key === 'ArrowUp') step = -1;
+    else return;
+    e.preventDefault();
+    const next = (step > 0 ? tr.nextElementSibling : tr.previousElementSibling) as HTMLTableRowElement | null;
+    const input = next?.querySelector<HTMLInputElement>(`input[data-col="${col}"]`);
+    if (!input) return;
+    input.focus();
+    input.select();
   }
 }

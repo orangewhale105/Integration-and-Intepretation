@@ -3,7 +3,9 @@
 import { h } from './dom';
 import { closeContextMenu } from './contextMenu';
 
-export type DragPayload = { kind: 'card'; cardId: string; origin: 'screen1' | 'send' | 'icidh' };
+export type DragPayload =
+  | { kind: 'card'; cardId: string; origin: 'screen1' | 'icidh' }
+  | { kind: 'disease'; id: string; origin: 'screen1' | 'icidh' };
 
 export interface DropTarget {
   el: HTMLElement;
@@ -34,6 +36,22 @@ function findTarget(x: number, y: number, p: DragPayload): DropTarget | null {
 }
 
 const START_DISTANCE = 6;
+/** タッチでは、少し押さえてから動かすとドラッグになる（すぐに動かすとスクロール） */
+const TOUCH_HOLD_MS = 250;
+const TOUCH_TOLERANCE = 10;
+
+/** 入力欄やボタンの上では、ドラッグを始めない（文字の選択や入力を優先する） */
+function isInteractive(t: EventTarget | null): boolean {
+  return t instanceof Element && !!t.closest('input, textarea, select, button, .connector');
+}
+
+export interface DraggableOptions {
+  /**
+   * 要素のどこをつかんでもドラッグできるようにする（入力欄などを除く）。
+   * タッチではスクロールと区別するため、少し押さえてから動かす。
+   */
+  wholeArea?: boolean;
+}
 
 /**
  * handle をつかんでドラッグできるようにする。
@@ -43,20 +61,48 @@ export function makeDraggable(
   handle: HTMLElement,
   getPayload: () => DragPayload | null,
   ghostText: () => string,
+  options: DraggableOptions = {},
 ): void {
-  handle.style.touchAction = 'none';
+  const holdForTouch = !!options.wholeArea;
+  if (!holdForTouch) handle.style.touchAction = 'none';
+
+  /** タッチで押さえ続けてドラッグの準備ができた状態か */
+  let armed = false;
+  if (holdForTouch) {
+    // 準備ができた後の指の動きでは、スクロールさせない
+    handle.addEventListener('touchmove', (e) => {
+      if (armed) e.preventDefault();
+    }, { passive: false });
+  }
+
   handle.addEventListener('pointerdown', (down) => {
-    if (down.button !== 0) return;
+    if (down.button !== 0 || isInteractive(down.target)) return;
     const payload = getPayload();
     if (!payload) return;
     const startX = down.clientX;
     const startY = down.clientY;
+    const touch = holdForTouch && down.pointerType === 'touch';
     let ghost: HTMLElement | null = null;
     let over: DropTarget | null = null;
+    let holdTimer: ReturnType<typeof setTimeout> | null = null;
+    armed = !touch;
+    if (touch) {
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        armed = true;
+        handle.classList.add('drag-armed');
+      }, TOUCH_HOLD_MS);
+    }
 
     const move = (e: PointerEvent) => {
       if (!ghost) {
-        if (Math.hypot(e.clientX - startX, e.clientY - startY) < START_DISTANCE) return;
+        const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+        if (!armed) {
+          // 押さえる前に動かした：スクロールとして扱い、ドラッグはしない
+          if (dist > TOUCH_TOLERANCE) end(e, true);
+          return;
+        }
+        if (dist < START_DISTANCE) return;
         closeContextMenu();
         ghost = h('div', { class: 'drag-ghost' }, ghostText() || '（ラベルなし）');
         document.body.append(ghost);
@@ -77,6 +123,9 @@ export function makeDraggable(
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', cancel);
+      if (holdTimer) clearTimeout(holdTimer);
+      armed = false;
+      handle.classList.remove('drag-armed');
       if (!ghost) return;
       ghost.remove();
       document.body.classList.remove('is-dragging');

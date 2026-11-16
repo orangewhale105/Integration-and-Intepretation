@@ -37,6 +37,15 @@ export function curve(x1: number, y1: number, x2: number, y2: number): string {
   return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
 }
 
+/** curve() で描いた曲線の中ほどの点 */
+export function curveMidpoint(x1: number, y1: number, x2: number, y2: number): [number, number] {
+  // 3次ベジェ曲線の t = 0.5。制御点は始点・終点と同じ高さにある
+  const dx = Math.max(24, (x2 - x1) / 2);
+  const cx1 = x1 + dx;
+  const cx2 = x2 - dx;
+  return [(x1 + 3 * cx1 + 3 * cx2 + x2) / 8, (y1 + y2) / 2];
+}
+
 /** 座標の基準となる要素（container）から見た位置で矢印を描く */
 export function anchorPoints(container: Element, fromEl: Element, toEl: Element): [number, number, number, number] {
   const base = container.getBoundingClientRect();

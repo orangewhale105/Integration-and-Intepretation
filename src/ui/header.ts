@@ -1,7 +1,7 @@
-// 画面上部：ケース名（ファイル名）と、新規・開く・保存・印刷
+// 画面上部：ケース名（ファイル名）と、新規・開く・保存・印刷・Word 出力
 import { createEmptyCase } from '../model/caseData';
 import { store } from '../store';
-import { CaseParseError, exportCaseFile, importCaseFile } from '../storage/storage';
+import { CaseParseError, exportCaseFile, exportResumeFile, importCaseFile } from '../storage/storage';
 import { h } from './common/dom';
 import { showToast } from './common/toast';
 import { printCase } from '../print/print';
@@ -63,7 +63,13 @@ export function createHeader(): HTMLElement {
         store.markClean();
         sync();
       }, 'ケース名をファイル名として書き出す'),
-      btn('印刷', () => printCase(store.data), 'A4 横で印刷する（PDF 保存もできます）'),
+      btn('印刷', () => printCase(store.data), '単一検査結果の解釈と統合と解釈の図を A4 横で印刷する（PDF 保存もできます）'),
+      btn('Word出力', () => {
+        exportResumeFile(store.data).catch((e) => {
+          console.error(e);
+          showToast('Word ファイルを作れませんでした。', 'warn');
+        });
+      }, 'レジュメ（入力した部分のみ）を A4 縦・2段組の Word ファイルにする'),
       fileInput,
     ),
   );

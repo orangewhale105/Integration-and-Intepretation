@@ -10,7 +10,6 @@
   --danger-soft: #ffebe9;
   --warn-bg: #fff4d6;
   --ok: #1a7f37;
-  --send-w: 190px;
   --splitter-w: 10px;
   --header-h: 46px;
   font-family: system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
@@ -84,14 +83,15 @@ input, textarea, select, button { font: inherit; font-size: 16px; color: inherit
   min-height: 0;
   display: grid;
   grid-template-columns:
-    clamp(var(--send-w), calc(var(--split) - var(--splitter-w) / 2), calc(100% - var(--splitter-w)))
+    clamp(0px, calc(var(--split) - var(--splitter-w) / 2), calc(100% - var(--splitter-w)))
     var(--splitter-w)
     minmax(0, 1fr);
 }
 .pane { min-width: 0; min-height: 0; overflow: hidden; }
-.pane-left { display: grid; grid-template-columns: minmax(0, 1fr) var(--send-w); }
+.pane-left { display: grid; grid-template-columns: minmax(0, 1fr); }
 .pane-right { overflow: auto; background: var(--panel); }
 .pane-title { font-size: 15px; margin: 0; padding: 10px 12px 6px; }
+.pane-note { margin: 0; padding: 0 12px 4px; font-size: 12px; color: var(--muted); }
 
 .splitter {
   cursor: col-resize;
