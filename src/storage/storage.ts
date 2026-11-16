@@ -117,17 +117,27 @@ export function serializeCase(data: CaseData): string {
   return JSON.stringify(data, null, 2);
 }
 
-/** ケースを JSON ファイルとして書き出す（ファイル名＝ケース名） */
-export function exportCaseFile(data: CaseData): void {
-  const blob = new Blob([serializeCase(data)], { type: 'application/json' });
+/** 端末にファイルとして保存させる（ダウンロード） */
+function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${safeFileName(data.caseName)}.json`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** ケースを JSON ファイルとして書き出す（ファイル名＝ケース名） */
+export function exportCaseFile(data: CaseData): void {
+  downloadBlob(new Blob([serializeCase(data)], { type: 'application/json' }), `${safeFileName(data.caseName)}.json`);
+}
+
+/** レジュメ（入力部分のみ）を Word ファイルとして書き出す。Word の部品は必要になったときに読み込む */
+export async function exportResumeFile(data: CaseData): Promise<void> {
+  const { buildResumeBlob } = await import('../export/resumeDocx');
+  downloadBlob(await buildResumeBlob(data), `${safeFileName(data.caseName)}_レジュメ.docx`);
 }
 
 /** JSON ファイルからケースを読み込む。ケース名はファイル名から付ける */
