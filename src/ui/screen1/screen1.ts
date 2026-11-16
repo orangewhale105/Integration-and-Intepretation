@@ -1,10 +1,11 @@
-// 画面1：単一の評価情報の解釈。カードを情報源の区分ごとにまとめて表示する。
-import { deleteCard } from '../../model/caseData';
+// 画面1：単一検査結果の解釈。カードを情報源の区分ごとにまとめて表示する。
+import { deleteCard, isPlaced } from '../../model/caseData';
 import { CATEGORIES, type Card, type SourceCategory } from '../../model/types';
 import { store } from '../../store';
 import { attachContextMenu } from '../common/contextMenu';
 import { h } from '../common/dom';
 import { CardView, type CardViewHooks } from './cardView';
+import { createDiagnosisList, type DiagnosisList } from './diagnosisList';
 
 export function createScreen1(): HTMLElement {
   const sections = new Map<SourceCategory, HTMLElement>();
@@ -13,8 +14,9 @@ export function createScreen1(): HTMLElement {
   const list = h('div', { class: 'screen1-list' });
   const root = h(
     'section',
-    { class: 'screen1-body', 'aria-label': '画面1' },
-    h('h1', { class: 'pane-title' }, '画面1：単一の評価情報の解釈'),
+    { class: 'screen1-body', 'aria-label': '単一検査結果の解釈' },
+    h('h1', { class: 'pane-title' }, '単一検査結果の解釈'),
+    h('p', { class: 'pane-note' }, 'カードや診断名は、入力欄以外の部分をつかんで「統合と解釈」へドラッグして置きます。'),
     list,
   );
 
@@ -42,7 +44,7 @@ export function createScreen1(): HTMLElement {
 
   function newView(card: Card | null, category: SourceCategory): CardView {
     const view = new CardView(card, category, hooks);
-    if (card) view.setSent(store.data.sent.includes(card.id));
+    if (card) view.setPlaced(isPlaced(store.data, card.id));
     views.set(view.el, view);
     return view;
   }
@@ -57,7 +59,7 @@ export function createScreen1(): HTMLElement {
         danger: true,
         action: () => {
           const name = view.card.label.trim() || '（ラベルなし）';
-          if (!window.confirm(`カード「${name}」を削除します。画面2に置いてある場合は画面2からも消え、矢印も消えます。よろしいですか？`)) return;
+          if (!window.confirm(`カード「${name}」を削除します。統合と解釈の画面に置いてある場合はそこからも消え、矢印も消えます。よろしいですか？`)) return;
           deleteCard(store.data, view.card.id);
           views.delete(view.el);
           view.el.remove();
@@ -66,6 +68,8 @@ export function createScreen1(): HTMLElement {
       },
     ];
   });
+
+  let diagnoses: DiagnosisList | null = null;
 
   function render(): void {
     list.replaceChildren();
@@ -76,14 +80,21 @@ export function createScreen1(): HTMLElement {
       sections.set(cat.id, cards);
       for (const card of store.data.cards.filter((c) => c.category === cat.id)) cards.append(newView(card, cat.id).el);
       cards.append(newView(null, cat.id).el);
-      list.append(h('section', { class: 'category' }, h('h2', { class: 'category-title' }, cat.label), cards));
+      const section = h('section', { class: 'category' }, h('h2', { class: 'category-title' }, cat.label));
+      // 診断名は医学的情報の先頭に入力する
+      if (cat.id === 'medical') {
+        diagnoses = createDiagnosisList();
+        section.append(diagnoses.el);
+      }
+      section.append(cards);
+      list.append(section);
     }
   }
 
   store.subscribe((kind) => {
     if (kind === 'replace') return render();
-    const sent = new Set(store.data.sent);
-    for (const view of views.values()) if (!view.blank) view.setSent(sent.has(view.card.id));
+    for (const view of views.values()) if (!view.blank) view.setPlaced(isPlaced(store.data, view.card.id));
+    diagnoses?.refresh();
   });
   render();
   return root;

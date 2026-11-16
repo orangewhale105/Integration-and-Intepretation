@@ -1,37 +1,40 @@
-// 画面2：ICIDH による統合と解釈。
-// 送り欄のカードを各段階の列へ置き、原因 → 結果の向きに矢印を引く。
+// 画面2：統合と解釈（ICIDH）。
+// 画面1のカード・診断名を各列へ直接ドラッグして置き、原因 → 結果の向きに矢印を引く。
 // 画面1でラベリングした問題点以外は置けない（問題点を新しく作る手段は設けない）。
-import { findCard } from '../../model/caseData';
-import { addLink, deleteDisease, numbering, placeCard, problemList, refName, removeFromIcidh } from '../../model/icidh';
-import { newId } from '../../model/id';
+import { findCard, findDiagnosis } from '../../model/caseData';
+import { addLink, numbering, placeCard, placeDisease, problemList, refName, removeDiseaseFromIcidh, removeFromIcidh } from '../../model/icidh';
 import { STAGES, type IcidhStage, type NodeRef } from '../../model/types';
-import { isIncomplete } from '../../model/validation';
+import { isIncomplete, placeBlockReason } from '../../model/validation';
 import { store } from '../../store';
 import { attachContextMenu } from '../common/contextMenu';
 import { h } from '../common/dom';
 import { makeDraggable, registerDropTarget } from '../common/dragDrop';
 import { showToast } from '../common/toast';
 import { showCardDetail } from '../screen1/cardDetail';
-import { anchorPoints, createArrowLayer, curve, svg } from './arrows';
+import { anchorPoints, createArrowLayer, curve, curveMidpoint, svg } from './arrows';
 import { showLinkDialog } from './linkDialog';
 
 const MARKER_ID = 'icidh-arrow-head';
+/** 図の上に出す、矢印の説明の文字数 */
+const NOTE_PREVIEW = 8;
 
 export function createScreen2(): HTMLElement {
   const columns = h('div', { class: 'icidh-columns' });
   const layer = createArrowLayer(MARKER_ID);
-  const diagram = h('div', { class: 'icidh-diagram' }, columns);
+  /** 矢印の説明の冒頭を、矢印の中ほどに出す */
+  const notes = h('div', { class: 'arrow-notes' });
+  const diagram = h('div', { class: 'icidh-diagram' }, columns, notes);
   diagram.prepend(layer);
   const list = h('div', { class: 'problem-list' });
   const root = h(
     'section',
-    { class: 'screen2', 'aria-label': '画面2' },
-    h('h1', { class: 'pane-title' }, '画面2：ICIDH による統合と解釈'),
+    { class: 'screen2', 'aria-label': '統合と解釈' },
+    h('h1', { class: 'pane-title' }, '統合と解釈'),
     h(
       'p',
       { class: 'screen2-note' },
       h('strong', {}, '各列では、上に置いたカードほど重要度が高いことを表します。'),
-      ' 送り欄のカードをドラッグして列に置き、カードの右端の ● から原因 → 結果の向きに矢印を引きます。',
+      ' 左の画面のカード・診断名をドラッグして列に置き、右端の ● から原因 → 結果の向きに矢印を引きます。矢印の説明は、矢印か説明をクリック（iPad はタップ）すると表示・編集できます。',
     ),
     diagram,
     list,
@@ -41,55 +44,63 @@ export function createScreen2(): HTMLElement {
   let unregister: Array<() => void> = [];
   const addDropTarget = (t: Parameters<typeof registerDropTarget>[0]) => unregister.push(registerDropTarget(t));
 
-  /** 再描画のあとに入力欄へフォーカスを戻すための目印 */
-  let focusAfterRender: string | null = null;
+  /** 列の中で、y の位置に置いたときの順番 */
+  const indexAt = (body: HTMLElement, selector: string, y: number) => {
+    const items = [...body.querySelectorAll<HTMLElement>(selector)];
+    const i = items.findIndex((c) => {
+      const r = c.getBoundingClientRect();
+      return y < r.top + r.height / 2;
+    });
+    return i === -1 ? items.length : i;
+  };
+  const showDropLine = (body: HTMLElement, indicator: HTMLElement, selector: string, y: number) => {
+    const items = body.querySelectorAll(selector);
+    const i = indexAt(body, selector, y);
+    if (i < items.length) body.insertBefore(indicator, items[i]);
+    else body.append(indicator);
+  };
 
-  // ---- 疾患・変調（直接入力。末尾の空の枠に書き始めると新しい枠になる） ----
+  // ---- 疾患（画面1の医学的情報で入力した診断名を置く） ----
   function diseaseColumn(): HTMLElement {
     const nums = numbering(store.data);
     const body = h('div', { class: 'col-body' });
-    for (const d of store.data.icidh.diseases) {
-      const input = h('input', {
-        type: 'text',
-        class: 'field-input disease-input',
-        'data-focus-key': `disease:${d.id}`,
-        'aria-label': `D${nums.disease.get(d.id)} 疾患名`,
-      }) as HTMLInputElement;
-      input.value = d.name;
-      input.addEventListener('input', () => {
-        d.name = input.value;
-        focusAfterRender = `disease:${d.id}`;
-        store.commit();
-      });
+    for (const id of store.data.icidh.diseases) {
+      const dx = findDiagnosis(store.data, id);
+      if (!dx) continue;
       const box = h(
         'div',
-        { class: 'disease-box node', 'data-disease-id': d.id },
-        h('span', { class: 'node-num' }, `D${nums.disease.get(d.id)}`),
-        input,
-        connector({ kind: 'disease', id: d.id }),
+        { class: `disease-box node${dx.name.trim() === '' ? ' incomplete' : ''}`, 'data-disease-id': id },
+        h('span', { class: 'node-num' }, `D${nums.disease.get(id)}`),
+        h('span', { class: 'node-label' }, dx.name.trim() || '（診断名なし）'),
+        connector({ kind: 'disease', id }),
       );
+      makeDraggable(box, () => ({ kind: 'disease', id, origin: 'icidh' }), () => dx.name);
       body.append(box);
     }
-    const blank = h('input', {
-      type: 'text',
-      class: 'field-input disease-input',
-      placeholder: '疾患名を入力',
-      'data-focus-key': 'disease:blank',
-      'aria-label': '新しい疾患名',
-    }) as HTMLInputElement;
-    blank.addEventListener('input', () => {
-      const d = { id: newId(), name: blank.value };
-      store.data.icidh.diseases.push(d);
-      focusAfterRender = `disease:${d.id}`;
-      store.commit();
-    });
-    body.append(h('div', { class: 'disease-box blank' }, blank));
-
-    const col = h('div', { class: 'icidh-col', 'data-stage': 'disease' }, h('h2', { class: 'col-title' }, '疾患・変調'), body);
+    const indicator = h('div', { class: 'drop-line' });
+    const col = h('div', { class: 'icidh-col', 'data-stage': 'disease' }, h('h2', { class: 'col-title' }, '疾患'), body);
     addDropTarget({
       el: col,
-      accepts: (p) => p.kind === 'card',
-      onDrop: () => showToast('「疾患・変調」は問題点ではないため、カードは置けません。疾患名は直接入力してください。'),
+      accepts: () => true,
+      onOver: (p, _x, y) => {
+        if (p.kind === 'disease') showDropLine(body, indicator, '.disease-box', y);
+      },
+      onLeave: () => indicator.remove(),
+      onDrop: (p, _x, y) => {
+        indicator.remove();
+        if (p.kind === 'card') {
+          showToast('「疾患」の列にはカードは置けません。診断名は医学的情報に入力してから、ここへドラッグしてください。');
+          return;
+        }
+        const dx = findDiagnosis(store.data, p.id);
+        if (!dx) return;
+        if (dx.name.trim() === '') {
+          showToast('診断名が空のため置けません。入力してから置いてください。', 'warn');
+          return;
+        }
+        placeDisease(store.data, p.id, indexAt(body, '.disease-box', y));
+        store.commit();
+      },
     });
     return col;
   }
@@ -114,27 +125,30 @@ export function createScreen2(): HTMLElement {
     const indicator = h('div', { class: 'drop-line' });
     const col = h('div', { class: 'icidh-col', 'data-stage': stage }, h('h2', { class: 'col-title' }, title), body);
 
-    const indexAt = (y: number) => {
-      const chips = [...body.querySelectorAll<HTMLElement>('.icidh-card')];
-      const i = chips.findIndex((c) => {
-        const r = c.getBoundingClientRect();
-        return y < r.top + r.height / 2;
-      });
-      return i === -1 ? chips.length : i;
-    };
     addDropTarget({
       el: col,
-      accepts: (p) => p.kind === 'card' && (p.origin === 'send' || p.origin === 'icidh'),
-      onOver: (_p, _x, y) => {
-        const chips = body.querySelectorAll('.icidh-card');
-        const i = indexAt(y);
-        if (i < chips.length) body.insertBefore(indicator, chips[i]);
-        else body.append(indicator);
+      accepts: () => true,
+      onOver: (p, _x, y) => {
+        if (p.kind === 'card') showDropLine(body, indicator, '.icidh-card', y);
       },
       onLeave: () => indicator.remove(),
       onDrop: (p, _x, y) => {
-        const index = indexAt(y);
         indicator.remove();
+        if (p.kind === 'disease') {
+          showToast('診断名は「疾患」の列に置いてください。');
+          return;
+        }
+        const card = findCard(store.data, p.cardId);
+        if (!card) return;
+        // 画面1から置くとき：検査結果と問題点のラベルがなければ置かない（ドロップした時点で判定する）
+        if (p.origin === 'screen1') {
+          const reason = placeBlockReason(card);
+          if (reason) {
+            showToast(reason, 'warn');
+            return;
+          }
+        }
+        const index = indexAt(body, '.icidh-card', y);
         const removed = placeCard(store.data, p.cardId, stage, index);
         store.commit();
         if (removed > 0) showToast(`段階が変わったため、ルールに合わなくなった矢印を ${removed} 本消しました。`, 'info');
@@ -194,7 +208,7 @@ export function createScreen2(): HTMLElement {
       return [
         { label: 'カードの内容を見る', action: () => showCardDetail(card) },
         {
-          label: '画面2から外す',
+          label: '統合と解釈から外す',
           danger: true,
           action: () => {
             removeFromIcidh(store.data, card.id);
@@ -208,10 +222,10 @@ export function createScreen2(): HTMLElement {
     if (id) {
       return [
         {
-          label: 'この疾患を削除',
+          label: '統合と解釈から外す',
           danger: true,
           action: () => {
-            deleteDisease(store.data, id);
+            removeDiseaseFromIcidh(store.data, id);
             store.commit();
           },
         },
@@ -223,6 +237,7 @@ export function createScreen2(): HTMLElement {
   // ---- 矢印の描画 ----
   function drawArrows(): void {
     layer.querySelectorAll('.arrow').forEach((n) => n.remove());
+    notes.replaceChildren();
     layer.setAttribute('width', String(diagram.scrollWidth));
     layer.setAttribute('height', String(diagram.scrollHeight));
     const nums = numbering(store.data);
@@ -231,12 +246,13 @@ export function createScreen2(): HTMLElement {
       const fromEl = columns.querySelector(fromSel);
       const toEl = columns.querySelector(`[data-card-id="${link.toCardId}"]`);
       if (!fromEl || !toEl) continue;
-      const d = curve(...anchorPoints(diagram, fromEl, toEl));
+      const points = anchorPoints(diagram, fromEl, toEl);
+      const d = curve(...points);
       const g = svg('g', { class: 'arrow' });
       g.append(svg('path', { d, class: 'arrow-line', 'marker-end': `url(#${MARKER_ID})` }));
       const hit = svg('path', { d, class: 'arrow-hit' });
       const title = `${refName(nums, link.from)} → #${nums.card.get(link.toCardId)} のつながり`;
-      hit.addEventListener('click', () =>
+      const open = () =>
         showLinkDialog(
           title,
           link.note,
@@ -248,10 +264,24 @@ export function createScreen2(): HTMLElement {
             store.data.icidh.links = store.data.icidh.links.filter((l) => l !== link);
             store.commit();
           },
-        ),
-      );
+        );
+      hit.addEventListener('click', open);
       g.append(hit);
       layer.append(g);
+
+      const note = link.note.trim();
+      if (note) {
+        const [mx, my] = curveMidpoint(...points);
+        const short = note.length > NOTE_PREVIEW ? `${note.slice(0, NOTE_PREVIEW)}…` : note;
+        const tag = h('button', { type: 'button', class: 'arrow-note', title: note }, short.replace(/\s+/g, ' '));
+        tag.style.left = `${mx}px`;
+        tag.style.top = `${my}px`;
+        tag.addEventListener('click', open);
+        // 説明にマウスを乗せたときも、その矢印を強調する
+        tag.addEventListener('pointerenter', () => g.classList.add('hover'));
+        tag.addEventListener('pointerleave', () => g.classList.remove('hover'));
+        notes.append(tag);
+      }
     }
   }
 
@@ -259,7 +289,7 @@ export function createScreen2(): HTMLElement {
   function renderList(): void {
     const items = problemList(store.data);
     const nums = numbering(store.data);
-    const diseases = store.data.icidh.diseases;
+    const diseases = store.data.icidh.diseases.map((id) => findDiagnosis(store.data, id)).filter((d) => !!d);
     list.replaceChildren(
       h('h2', { class: 'list-title' }, '問題点リスト'),
       items.length === 0 && diseases.length === 0
@@ -281,24 +311,11 @@ export function createScreen2(): HTMLElement {
   }
 
   function render(): void {
-    const active = document.activeElement as HTMLElement | null;
-    const key = focusAfterRender ?? (active && root.contains(active) ? active.dataset.focusKey : undefined);
-    const sel = active instanceof HTMLInputElement ? [active.selectionStart, active.selectionEnd] : null;
-    focusAfterRender = null;
-
     unregister.forEach((f) => f());
     unregister = [];
     columns.replaceChildren(diseaseColumn(), ...STAGES.map((s) => stageColumn(s.id, s.label)));
     renderList();
     requestAnimationFrame(drawArrows);
-
-    if (key) {
-      const el = root.querySelector<HTMLInputElement>(`[data-focus-key="${key}"]`);
-      if (el) {
-        el.focus();
-        if (sel) el.setSelectionRange(sel[0], sel[1]);
-      }
-    }
   }
 
   new ResizeObserver(() => drawArrows()).observe(diagram);

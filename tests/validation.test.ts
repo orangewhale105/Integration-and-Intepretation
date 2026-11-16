@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createCard, createRow } from '../src/model/caseData';
-import { missingFields, sendBlockReason } from '../src/model/validation';
+import { missingFields, placeBlockReason } from '../src/model/validation';
 
 function filledCard() {
   const c = createCard('exam');
@@ -21,25 +21,25 @@ describe('入力不備の判定', () => {
     const c = filledCard();
     c.source = '  ';
     c.rows = [{ ...createRow(), result: ' ', reference: '130°' }];
-    expect(missingFields(c)).toEqual(['出典', '結果']);
+    expect(missingFields(c)).toEqual(['検査結果', '出典']);
   });
 });
 
-describe('画面2へ送る条件', () => {
-  it('結果と問題点ラベルがあれば、基準・出典が空でも送れる', () => {
+describe('統合と解釈の画面へ置く条件', () => {
+  it('検査結果と問題点のラベルがあれば、判定基準・出典が空でも置ける', () => {
     const c = filledCard();
     c.criterion = '';
     c.source = '';
-    expect(sendBlockReason(c)).toBeNull();
+    expect(placeBlockReason(c)).toBeNull();
   });
 
-  it('結果か問題点ラベルが空なら送れない', () => {
+  it('検査結果か問題点のラベルが空なら置けない', () => {
     const noLabel = filledCard();
     noLabel.label = '';
-    expect(sendBlockReason(noLabel)).toContain('問題点ラベル');
+    expect(placeBlockReason(noLabel)).toContain('問題点のラベル');
 
     const noResult = filledCard();
     noResult.rows = [];
-    expect(sendBlockReason(noResult)).toContain('結果');
+    expect(placeBlockReason(noResult)).toContain('検査結果');
   });
 });

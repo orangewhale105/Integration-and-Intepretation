@@ -7,7 +7,6 @@ import { loadAutosave } from './storage/storage';
 import { h } from './ui/common/dom';
 import { createHeader } from './ui/header';
 import { createScreen1 } from './ui/screen1/screen1';
-import { createSendColumn } from './ui/screen1/sendColumn';
 import { createScreen2 } from './ui/screen2/screen2';
 import { createSplitter } from './ui/splitter';
 
@@ -20,7 +19,7 @@ async function start(): Promise<void> {
   }
 
   const split = h('main', { class: 'split' });
-  const screen1 = h('div', { class: 'pane pane-left' }, createScreen1(), createSendColumn());
+  const screen1 = h('div', { class: 'pane pane-left' }, createScreen1());
   const screen2 = h('div', { class: 'pane pane-right' }, createScreen2());
   split.append(screen1, createSplitter(split), screen2);
 

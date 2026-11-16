@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCard, createEmptyCase } from '../src/model/caseData';
-import { addLink, deleteDisease, linkBlockReason, numbering, placeCard, problemList } from '../src/model/icidh';
+import { addLink, linkBlockReason, numbering, placeCard, placeDisease, problemList, removeDiseaseFromIcidh } from '../src/model/icidh';
+import { deleteDiagnosis } from '../src/model/caseData';
 import type { CaseData } from '../src/model/types';
 
 function setup() {
@@ -9,7 +10,6 @@ function setup() {
     const c = createCard('exam');
     c.label = label;
     data.cards.push(c);
-    data.sent.push(c.id);
     return c.id;
   };
   const ids = {
@@ -19,7 +19,9 @@ function setup() {
     gait: mk('歩行能力低下'),
     job: mk('復職困難'),
   };
-  data.icidh.diseases.push({ id: 'd1', name: '頚部脊柱管狭窄症' }, { id: 'd2', name: '2型糖尿病' });
+  data.diagnoses.push({ id: 'd1', name: '頚部脊柱管狭窄症' }, { id: 'd2', name: '2型糖尿病' });
+  placeDisease(data, 'd1', 9);
+  placeDisease(data, 'd2', 9);
   placeCard(data, ids.sensA, 'impairment', 9);
   placeCard(data, ids.sensB, 'impairment', 9);
   placeCard(data, ids.quad, 'impairment', 9);
@@ -73,19 +75,31 @@ describe('配置', () => {
     expect(data.icidh.columns.impairment).toEqual([ids.sensA, ids.sensB, ids.quad]);
   });
 
-  it('送っていないカードは置けない', () => {
+  it('画面1にないカードは置けない', () => {
     const { data } = setup();
-    const c = createCard('exam');
-    data.cards.push(c);
-    placeCard(data, c.id, 'impairment', 0);
-    expect(data.icidh.columns.impairment).not.toContain(c.id);
+    placeCard(data, 'missing', 'impairment', 0);
+    expect(data.icidh.columns.impairment).not.toContain('missing');
   });
 
-  it('疾患を消すと、その疾患からの矢印も消える', () => {
+  it('疾患の列の並べ替えで D番号が変わる', () => {
+    const { data } = setup();
+    placeDisease(data, 'd2', 0);
+    expect(data.icidh.diseases).toEqual(['d2', 'd1']);
+    expect(numbering(data).disease.get('d2')).toBe(1);
+  });
+
+  it('疾患を画面2から外すと、その疾患からの矢印も消える。診断名は画面1に残る', () => {
     const { data, ids } = setup();
     addLink(data, { kind: 'disease', id: 'd1' }, ids.quad);
-    deleteDisease(data, 'd1');
+    removeDiseaseFromIcidh(data, 'd1');
     expect(data.icidh.links).toEqual([]);
+    expect(data.diagnoses.map((d) => d.id)).toContain('d1');
+  });
+
+  it('診断名を削除すると、画面2からも外れる', () => {
+    const { data } = setup();
+    deleteDiagnosis(data, 'd1');
+    expect(data.icidh.diseases).toEqual(['d2']);
   });
 });
 
